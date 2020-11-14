@@ -1,6 +1,7 @@
 # Does each resource Spring Cloud, Hub Vnet, spring kcloud Vnet need own resource group??
 # DNS, Firewall???
 #Spoke VNet and Spring Cloud in separate RGs???
+#test commit
 # Prereq:
     # - spring cloud cli extension installed  az extension add -n spring-cloud
 
