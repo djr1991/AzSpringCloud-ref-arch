@@ -1,0 +1,145 @@
+# Does each resource Spring Cloud, Hub Vnet, spring kcloud Vnet need own resource group??
+# DNS, Firewall???
+#Spoke VNet and Spring Cloud in separate RGs???
+# Prereq:
+    # - spring cloud cli extension installed  az extension add -n spring-cloud
+
+
+#log into Azure tenant
+az login
+
+#Create Resource Group for Hub Virtual Network
+hub_vnet_resource_group_name='VirtualNetworks' #Hub Virtual Network Resource Group name
+location='eastus' #location of Hub Virtual Network 
+
+az group create --location ${location} --name ${hub_vnet_resource_group_name}
+
+
+#Create Hub VNet
+hub_vnet_name='Hub-Vnet' #Hub Virtual Network Name
+hub_vnet_resource_group_name='VirtualNetworks' #Hub Virtual Network Resource Group name
+hub_vnet_address_prefixes='10.9.0.0/16' #Hub Virtual Network Address Prefixes
+
+az network vnet create --name ${hub_vnet_name} \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --location ${location} \
+    --address-prefixes ${hub_vnet_address_prefixes}
+
+
+
+#Create Resoure Group for Azure Spring Cloud Virtual Network
+azurespringcloud_vnet_resource_group_name='azurespringcloud_virtualnetwork-rg' #parameter for Azure Spring Cloud Virtual network resource group name
+location='eastus' #location of Azure Spring Cloud Virtual Network 
+
+az group create --location ${location} --name ${azurespringcloud_vnet_resource_group_name}
+
+
+
+
+#Create Azure Spring Cloud Spoke Virtual Network
+azurespringcloud_vnet_name='azurespringcloud_virtualnetwork' #parameter for Azure Spring Cloud Vnet name
+azurespringcloud_vnet_resource_group_name='azurespringcloud_virtualnetwork-rg' #parameter for Azure Spring Cloud Virtual network resource group name
+location='eastus' #location of Azure Spring Cloud Virtual Network 
+azurespringcloud_vnet_address_prefixes='10.7.0.0/16' #address prefix of Azure Spring Cloud Virtual Network
+
+az network vnet create --name ${azurespringcloud_vnet_name} \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --location ${location} \
+    --address-prefixes ${azurespringcloud_vnet_address_prefixes}
+
+
+#Create Azure Spring Cloud Services subnet
+az network vnet subnet create   --name service-runtime-subnet  --resource-group ${azurespringcloud_vnet_resource_group_name}  --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix "10.7.0.0/28"
+
+#Create Azure Spring Cloud App Subnet
+az network vnet subnet create --name 'apps-subnet' --resource-group ${azurespringcloud_vnet_resource_group_name}   --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix '10.7.1.0/24'  
+
+
+#Grant 'Azure Spring Cloud Resource Provider' owner access to Azure Spring Cloud Spoke Virtual Network 
+az role assignment create \
+    --role "Owner" \
+    --scope ${azurespringcloud_vnet_id} \
+    --assignee e8de9221-a19c-4c81-b814-fd37c6caf9d2
+
+
+#Get Resource ID  for Azure Spring Cloud Vnet
+azurespringcloud_vnet_id=$(az network vnet show \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --name ${azurespringcloud_vnet_name} \
+    --query id --out tsv)
+
+#Get Resource ID for Hub Vnet
+hub_vnet_id=$(az network vnet show \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --name ${hub_vnet_name} \
+    --query id --out tsv)
+
+
+#Peer Azure Spring Cloud Spoke VNet to Hub VNet
+az network vnet peering create --name azurespringcloud_vnet_to_hub_vnet --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --vnet-name ${azurespringcloud_vnet_name} \
+    --remote-vnet-id ${hub_vnet_id} \
+    --allow-vnet-access
+#Peer Hub Vnet to Azure Spring Cloud Spoke VNet
+az network vnet peering create --name hub_vnet_to_azurespringcloud_vnet --resource-group ${hub_vnet_resource_group_name} \
+    --vnet-name ${hub_vnet_name} \
+    --remote-vnet-id ${azurespringcloud_vnet_id} \
+    --allow-vnet-access
+
+
+#Create Azure Spring Cloud Resource Group
+azurespringcloud_resource_group_name='AzSpringCloud' #Hub Virtual Network Resource Group name
+location='eastus' #location of Hub Virtual Network 
+
+az group create --location ${location} --name ${azurespringcloud_resource_group_name}
+
+#Deploy Azure Spring Cloud into Vnet
+azurespringcloud_service='azspringcloud'
+
+
+az spring-cloud create --name ${azurespringcloud_service} \
+    --resource-group ${azurespringcloud_resource_group_name} \
+    --location ${location} \
+    --vnet ${azurespringcloud_vnet_id} \
+    --service-runtime-subnet /subscriptions/5102b9f5-c6ad-4732-98c0-3a4563fbdaee/resourceGroups/azurespringcloud_virtualnetwork-rg/providers/Microsoft.Network/virtualNetworks/azurespringcloud_virtualnetwork/subnets/service-runtime-subnet \
+    --app-subnet /subscriptions/5102b9f5-c6ad-4732-98c0-3a4563fbdaee/resourceGroups/azurespringcloud_virtualnetwork-rg/providers/Microsoft.Network/virtualNetworks/azurespringcloud_virtualnetwork/subnets/apps-subnet
+
+
+#Add UDR in app subnet route table for NVA
+azurespringcloud_app_resourcegroup_name=$(az spring-cloud show \
+    --resource-group ${azurespringcloud_resource_group_name} \
+    --name ${azurespringcloud_service} \
+    --query 'properties.networkProfile.appNetworkResourceGroup' --out tsv )
+
+azurepringcloud_app_routetable_name=$(az network route-table list \
+    --resource-group ${azurespringcloud_app_resourcegroup_name} \
+    --query [].name --out tsv)
+
+az network route-table route create \
+    --resource-group ${azurespringcloud_app_resourcegroup_name} \
+    --route-table-name ${azurepringcloud_app_routetable_name} \
+    --name default \
+    --address-prefix 0.0.0.0/0 \
+    --next-hop-type VirtualAppliance \
+    --next-hop-ip-address 10.0.0.4
+
+
+#Add UDR in service subnet route table for NVA
+azurespringcloud_service_resourcegroup_name=$(az spring-cloud show \
+    --resource-group ${azurespringcloud_resource_group_name} \
+    --name ${azurespringcloud_service} \
+    --query 'properties.networkProfile.serviceRuntimeNetworkResourceGroup' --out tsv )
+
+azurepringcloud_service_routetable_name=$(az network route-table list \
+    --resource-group ${azurespringcloud_service_resourcegroup_name} \
+    --query [].name --out tsv)
+
+az network route-table route create \
+    --resource-group ${azurespringcloud_service_resourcegroup_name} \
+    --route-table-name ${azurepringcloud_service_routetable_name} \
+    --name default \
+    --address-prefix 0.0.0.0/0 \
+    --next-hop-type VirtualAppliance \
+    --next-hop-ip-address 10.0.0.4
