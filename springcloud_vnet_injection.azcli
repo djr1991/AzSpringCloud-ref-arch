@@ -1,9 +1,11 @@
 # Does each resource Spring Cloud, Hub Vnet, spring kcloud Vnet need own resource group??
 # DNS, Firewall???
 #Spoke VNet and Spring Cloud in separate RGs???
+#FW and DNS in their own resource groups???
 #test commit
 # Prereq:
-    # - spring cloud cli extension installed  az extension add -n spring-cloud
+    # - spring cloud and Firewall cli extension installed  az extension add -n spring-cloud
+
 
 
 #log into Azure tenant
@@ -26,6 +28,65 @@ az network vnet create --name ${hub_vnet_name} \
     --location ${location} \
     --address-prefixes ${hub_vnet_address_prefixes}
 
+#Create Azure Firewall Subnet in Hub
+az network vnet subnet create   --name AzureFirewallSubnet  --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix "10.9.0.0/24"
+
+#Create Central DNS subnet in Hub
+centralized_services_subnet_name='Centralized_Services'
+
+az network vnet subnet create   --name CentralizedServices --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix "10.9.1.0/24"
+
+#Create Gateway subnet in Hub
+az network vnet subnet create   --name GatewaySubnet --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix "10.9.2.0/24"
+
+
+#Create Application Gateway Subnet in Hub
+application_gateway_subnet_name='Centralized_Services'
+
+az network vnet subnet create   --name CentralizedServices --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix "10.9.3.0/24"
+
+
+
+#Create DNS Server in Centralized Services Subnet
+dns_server_name='centralizeddns-server'
+
+az vm create \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --name ${dns_server_name} \
+    --image win2016datacenter \
+    --admin-username azureuser \
+    --public-ip-address "" \
+    --vnet-name ${hub_vnet_name} \
+    --subnet ${centralized_services_subnet_name}
+
+#Create Firewall in AzureFirewallSubnet
+firewall_name='AzFirewall'
+firewall_public_ip_name='AzFirewall-pip'
+
+az network firewall create \
+    --name ${firewall_name} \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --location ${location}
+az network public-ip create \
+    --name ${firewall_public_ip_name} \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --location ${location} \
+    --allocation-method static \
+    --sku standard
+az network firewall ip-config create \
+    --firewall-name ${firewall_name} \
+    --name FW-config \
+    --public-ip-address ${firewall_public_ip_name} \
+    --resource-group ${hub_vnet_resource_group_name}\
+    --vnet-name ${hub_vnet_name}
+az network firewall update \
+    --name ${firewall_public_ip_name}  \
+    --resource-group ${hub_vnet_resource_group_name}
+firewall_private_ip="$(az network firewall ip-config list -g ${hub_vnet_resource_group_name} -f ${firewall_name} --query "[?name=='FW-config'].privateIpAddress" --output tsv)" 
 
 
 #Create Resoure Group for Azure Spring Cloud Virtual Network
@@ -33,8 +94,6 @@ azurespringcloud_vnet_resource_group_name='azurespringcloud_virtualnetwork-rg' #
 location='eastus' #location of Azure Spring Cloud Virtual Network 
 
 az group create --location ${location} --name ${azurespringcloud_vnet_resource_group_name}
-
-
 
 
 #Create Azure Spring Cloud Spoke Virtual Network
@@ -124,7 +183,7 @@ az network route-table route create \
     --name default \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
-    --next-hop-ip-address 10.0.0.4
+    --next-hop-ip-address ${firewall_private_ip}
 
 
 #Add UDR in service subnet route table for NVA
@@ -143,4 +202,4 @@ az network route-table route create \
     --name default \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
-    --next-hop-ip-address 10.0.0.4
+    --next-hop-ip-address ${firewall_private_ip}
