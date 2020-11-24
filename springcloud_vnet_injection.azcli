@@ -5,6 +5,7 @@
 #test commit
 # Prereq:
     # - spring cloud and Firewall cli extension installed  az extension add -n spring-cloud
+    #service cidrs cant overlap with VNet (default to 10.0.0.0/16,10.1.0.0/16,10.2.0.0/16)
 
 
 
@@ -12,15 +13,15 @@
 az login
 
 #Create Resource Group for Hub Virtual Network
-hub_vnet_resource_group_name='VirtualNetworks' #Hub Virtual Network Resource Group name
+hub_vnet_resource_group_name='hub-vnet-rg' #Hub Virtual Network Resource Group name
 location='eastus' #location of Hub Virtual Network 
 
 az group create --location ${location} --name ${hub_vnet_resource_group_name}
 
 
 #Create Hub VNet
-hub_vnet_name='Hub-Vnet' #Hub Virtual Network Name
-hub_vnet_resource_group_name='VirtualNetworks' #Hub Virtual Network Resource Group name
+hub_vnet_name='hub-vnet' #Hub Virtual Network Name
+hub_vnet_resource_group_name='hub-vnet-rg' #Hub Virtual Network Resource Group name
 hub_vnet_address_prefixes='10.9.0.0/16' #Hub Virtual Network Address Prefixes
 
 az network vnet create --name ${hub_vnet_name} \
@@ -29,43 +30,50 @@ az network vnet create --name ${hub_vnet_name} \
     --address-prefixes ${hub_vnet_address_prefixes}
 
 #Create Azure Firewall Subnet in Hub
+firewal_subnet_prefix='10.9.0.0/24'
+
 az network vnet subnet create   --name AzureFirewallSubnet  --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
-    --address-prefix "10.9.0.0/24"
+    --address-prefix ${firewal_subnet_prefix}
 
 #Create Central DNS subnet in Hub
-centralized_services_subnet_name='Centralized_Services'
+centralized_services_subnet_name='centralized-services-subnet'
+centralized_services_subnet_prefix='10.9.1.0/24'
 
-az network vnet subnet create   --name CentralizedServices --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
-    --address-prefix "10.9.1.0/24"
+az network vnet subnet create   --name ${centralized_services_subnet_name} --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix ${centralized_services_subnet_prefix}
 
 #Create Gateway subnet in Hub
+gateway_subnet_prefix='10.9.2.0/24'
+
 az network vnet subnet create   --name GatewaySubnet --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
-    --address-prefix "10.9.2.0/24"
+    --address-prefix ${gateway_subnet_prefix}
 
 
 #Create Application Gateway Subnet in Hub
-application_gateway_subnet_name='Centralized_Services'
+application_gateway_subnet_name='application-gateway-subnet'
+application_gateway_subnet_prefix='10.9.3.0/24'
 
-az network vnet subnet create   --name CentralizedServices --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
-    --address-prefix "10.9.3.0/24"
+az network vnet subnet create   --name ${application_gateway_subnet_name} --resource-group ${hub_vnet_resource_group_name}  --vnet-name ${hub_vnet_name} \
+    --address-prefix ${application_gateway_subnet_prefix}
 
 
 
 #Create DNS Server in Centralized Services Subnet
-dns_server_name='centralizeddns-server'
+dns_server_name='central-dns-VM'
 
 az vm create \
     --resource-group ${hub_vnet_resource_group_name} \
     --name ${dns_server_name} \
     --image win2016datacenter \
     --admin-username azureuser \
+    --admin-password 'T3sTP@$$W0rD!!' \
     --public-ip-address "" \
     --vnet-name ${hub_vnet_name} \
     --subnet ${centralized_services_subnet_name}
 
 #Create Firewall in AzureFirewallSubnet
-firewall_name='AzFirewall'
-firewall_public_ip_name='AzFirewall-pip'
+firewall_name='azfirewall'
+firewall_public_ip_name='azfirewall-pip'
 
 az network firewall create \
     --name ${firewall_name} \
@@ -84,23 +92,26 @@ az network firewall ip-config create \
     --resource-group ${hub_vnet_resource_group_name}\
     --vnet-name ${hub_vnet_name}
 az network firewall update \
-    --name ${firewall_public_ip_name}  \
+    --name ${firewall_name}  \
     --resource-group ${hub_vnet_resource_group_name}
 firewall_private_ip="$(az network firewall ip-config list -g ${hub_vnet_resource_group_name} -f ${firewall_name} --query "[?name=='FW-config'].privateIpAddress" --output tsv)" 
 
 
 #Create Resoure Group for Azure Spring Cloud Virtual Network
-azurespringcloud_vnet_resource_group_name='azurespringcloud_virtualnetwork-rg' #parameter for Azure Spring Cloud Virtual network resource group name
+azurespringcloud_vnet_resource_group_name='azurespringcloud-spoke-vnet-rg' #parameter for Azure Spring Cloud Virtual network resource group name
 location='eastus' #location of Azure Spring Cloud Virtual Network 
 
 az group create --location ${location} --name ${azurespringcloud_vnet_resource_group_name}
 
 
 #Create Azure Spring Cloud Spoke Virtual Network
-azurespringcloud_vnet_name='azurespringcloud_virtualnetwork' #parameter for Azure Spring Cloud Vnet name
-azurespringcloud_vnet_resource_group_name='azurespringcloud_virtualnetwork-rg' #parameter for Azure Spring Cloud Virtual network resource group name
-location='eastus' #location of Azure Spring Cloud Virtual Network 
-azurespringcloud_vnet_address_prefixes='10.7.0.0/16' #address prefix of Azure Spring Cloud Virtual Network
+azurespringcloud_vnet_name='azurespringcloud-spoke-vnet' #parameter for Azure Spring Cloud Vnet name
+azurespringcloud_vnet_address_prefixes='10.8.0.0/16' #address prefix of Azure Spring Cloud Virtual Network
+azurespringcloud_service_runtime_subnet_prefix='10.8.0.0/24'
+azurespringcloud_service_runtime_subnet_name='service-runtime-subnet'
+azurespringcloud_app_subnet_prefix='10.8.1.0/24'
+azurespringcloud_app_subnet_name='apps-subnet'
+
 
 az network vnet create --name ${azurespringcloud_vnet_name} \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
@@ -109,12 +120,12 @@ az network vnet create --name ${azurespringcloud_vnet_name} \
 
 
 #Create Azure Spring Cloud Services subnet
-az network vnet subnet create   --name service-runtime-subnet  --resource-group ${azurespringcloud_vnet_resource_group_name}  --vnet-name ${azurespringcloud_vnet_name} \
-    --address-prefix "10.7.0.0/28"
+az network vnet subnet create   --name ${azurespringcloud_service_runtime_subnet_name}  --resource-group ${azurespringcloud_vnet_resource_group_name}  --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix ${azurespringcloud_service_runtime_subnet_prefix}
 
 #Create Azure Spring Cloud App Subnet
-az network vnet subnet create --name 'apps-subnet' --resource-group ${azurespringcloud_vnet_resource_group_name}   --vnet-name ${azurespringcloud_vnet_name} \
-    --address-prefix '10.7.1.0/24'  
+az network vnet subnet create --name ${azurespringcloud_app_subnet_name} --resource-group ${azurespringcloud_vnet_resource_group_name}   --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix ${azurespringcloud_app_subnet_prefix} 
 
 
 #Grant 'Azure Spring Cloud Resource Provider' owner access to Azure Spring Cloud Spoke Virtual Network 
@@ -150,7 +161,7 @@ az network vnet peering create --name hub_vnet_to_azurespringcloud_vnet --resour
 
 
 #Create Azure Spring Cloud Resource Group
-azurespringcloud_resource_group_name='AzSpringCloud' #Hub Virtual Network Resource Group name
+azurespringcloud_resource_group_name='azspringcloud-rg' #Hub Virtual Network Resource Group name
 location='eastus' #location of Hub Virtual Network 
 
 az group create --location ${location} --name ${azurespringcloud_resource_group_name}
@@ -158,13 +169,24 @@ az group create --location ${location} --name ${azurespringcloud_resource_group_
 #Deploy Azure Spring Cloud into Vnet
 azurespringcloud_service='azspringcloud'
 
+apps_subnet_id=$(az network vnet subnet show \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --vnet-name ${azurespringcloud_vnet_name} \
+    --name ${azurespringcloud_app_subnet_name} \
+    --query id --out tsv)
+
+service_runtime_subnet_id$(az network vnet subnet show \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --vnet-name ${azurespringcloud_vnet_name} \
+    --name ${azurespringcloud_service_runtime_subnet_name} \
+    --query id --out tsv)
 
 az spring-cloud create --name ${azurespringcloud_service} \
     --resource-group ${azurespringcloud_resource_group_name} \
     --location ${location} \
     --vnet ${azurespringcloud_vnet_id} \
-    --service-runtime-subnet /subscriptions/5102b9f5-c6ad-4732-98c0-3a4563fbdaee/resourceGroups/azurespringcloud_virtualnetwork-rg/providers/Microsoft.Network/virtualNetworks/azurespringcloud_virtualnetwork/subnets/service-runtime-subnet \
-    --app-subnet /subscriptions/5102b9f5-c6ad-4732-98c0-3a4563fbdaee/resourceGroups/azurespringcloud_virtualnetwork-rg/providers/Microsoft.Network/virtualNetworks/azurespringcloud_virtualnetwork/subnets/apps-subnet
+    --service-runtime-subnet ${service_runtime_subnet_id} \
+    --app-subnet ${apps_subnet_id} 
 
 
 #Add UDR in app subnet route table for NVA
@@ -203,3 +225,15 @@ az network route-table route create \
     --address-prefix 0.0.0.0/0 \
     --next-hop-type VirtualAppliance \
     --next-hop-ip-address ${firewall_private_ip}
+
+
+
+
+az group delete -g ${hub_vnet_resource_group_name} --yes
+az group delete -g ${azurespringcloud_resource_group_name} --yes
+az group delete -g ${azurespringcloud_vnet_resource_group_name} --yes
+
+
+
+
+
