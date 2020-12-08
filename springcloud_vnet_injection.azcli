@@ -169,8 +169,8 @@ az group create --location ${location} --name ${azurespringcloud_resource_group_
 
 #Deploy Azure Spring Cloud into Vnet
 azurespringcloud_service='azspringcloud-dylanjreed2'
-azurespringcloud_service_runtime_resource_group_name='azspringcloud-apps-rg'
-azurespringcloud_app_resource_group_name='azspringcloud-service-runtime-rg'
+azurespringcloud_service_runtime_resource_group_name='azspringcloud-service-runtime-rg'
+azurespringcloud_app_resource_group_name='azspringcloud-apps-rg'
 
 apps_subnet_id=$(az network vnet subnet show \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
@@ -240,13 +240,22 @@ az network private-dns link vnet create --resource-group ${azurespringcloud_reso
     --name link-to-${azurespringcloud_vnet_name} \
     --zone-name private.azuremicroservices.io \
     --virtual-network ${azurespringcloud_vnet_id} \
-    --registration-enabled true
+    --registration-enabled false
 #Link Private DNS Zone to Hub VNet
 az network private-dns link vnet create --resource-group ${azurespringcloud_resource_group_name} \
     --name link-to-${hub_vnet_name} \
     --zone-name private.azuremicroservices.io \
     --virtual-network ${hub_vnet_id}\
-    --registration-enabled true
+    --registration-enabled false
+#Get Azure Spring Cloud App subnet internal load balancer private IP address
+azurespringcloud_internal_lb_private_ip=$(az network lb show --name kubernetes-internal \
+    --resource-group ${azurespringcloud_app_resourcegroup_name} \
+    --query frontendIpConfigurations[*].privateIpAddress --out tsv )
+#Add A record in Private DNS Zone for internal Azure Spring Cloud load balancer
+az network private-dns record-set a add-record --resource-group ${azurespringcloud_resource_group_name} \
+    --zone-name private.azuremicroservices.io \
+    --record-set-name '*' \
+    --ipv4-address ${azurespringcloud_internal_lb_private_ip}
 
 
 az group delete -g ${hub_vnet_resource_group_name} --yes
