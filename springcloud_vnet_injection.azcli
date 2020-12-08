@@ -76,7 +76,8 @@ firewall_public_ip_name='azfirewall-pip'
 az network firewall create \
     --name ${firewall_name} \
     --resource-group ${hub_vnet_resource_group_name} \
-    --location ${location}
+    --location ${location} \
+    --enable-dns-proxy true
 az network public-ip create \
     --name ${firewall_public_ip_name} \
     --resource-group ${hub_vnet_resource_group_name} \
