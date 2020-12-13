@@ -36,7 +36,7 @@ az network vnet create \
 firewal_subnet_prefix='10.9.0.0/24'
 
 az network vnet subnet create \
-    --name AzureFirewallSubnet \ 
+    --name 'AzureFirewallSubnet' \ 
     --resource-group ${hub_vnet_resource_group_name} \
     --vnet-name ${hub_vnet_name} \
     --address-prefix ${firewal_subnet_prefix}
@@ -55,7 +55,7 @@ az network vnet subnet create \
 gateway_subnet_prefix='10.9.2.0/24'
 
 az network vnet subnet create \
-    --name GatewaySubnet \ 
+    --name 'GatewaySubnet' \ 
     --resource-group ${hub_vnet_resource_group_name} \
     --vnet-name ${hub_vnet_name} \
     --address-prefix ${gateway_subnet_prefix}
@@ -155,24 +155,25 @@ az network vnet subnet create \
 azurespringcloud_vnet_id=$(az network vnet show \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
     --name ${azurespringcloud_vnet_name} \
-    --query id --out tsv)
+    --query 'id' \
+    --out tsv)
 
 #Get Resource ID for Hub Vnet
 hub_vnet_id=$(az network vnet show \
     --resource-group ${hub_vnet_resource_group_name} \
     --name ${hub_vnet_name} \
-    --query id --out tsv)
+    --query 'id' \
+    --out tsv)
 
 
 #Grant 'Azure Spring Cloud Resource Provider' owner access to Azure Spring Cloud Spoke Virtual Network 
 az role assignment create \
     --role "Owner" \
     --scope ${azurespringcloud_vnet_id} \
-    --assignee e8de9221-a19c-4c81-b814-fd37c6caf9d2
+    --assignee 'e8de9221-a19c-4c81-b814-fd37c6caf9d2'
 
 #Peer Azure Spring Cloud Spoke VNet to Hub VNet
-az network vnet peering create \
-    --name azurespringcloud_vnet_to_hub_vnet \ 
+az network vnet peering create --name ${peeringname} \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
     --vnet-name ${azurespringcloud_vnet_name} \
     --remote-vnet ${hub_vnet_name} \
