@@ -23,6 +23,8 @@ azurespringcloud_service_runtime_subnet_prefix='10.8.0.0/24' #subnet prefix of A
 azurespringcloud_service_runtime_subnet_name='service-runtime-subnet'
 azurespringcloud_app_subnet_prefix='10.8.1.0/24'
 azurespringcloud_app_subnet_name='apps-subnet'
+azurespringcloud_data_subnet_prefix='10.8.2.0/24'
+azurespringcloud_support_subnet_prefix='10.8.3.0/24'
 azurespringcloud_resource_group_name='azspringcloud-rg' #Hub Virtual Network Resource Group name
 azurespringcloud_service='azspringcloud-'$randomstring #Name of unique Spring Cloud resource
 azurespringcloud_service_runtime_resource_group_name=$azurespringcloud_service'-service-runtime-rg' #Name of Azure Spring Cloud service runtime resource group	
@@ -201,6 +203,18 @@ az network vnet subnet create \
     --vnet-name ${azurespringcloud_vnet_name} \
     --address-prefix ${azurespringcloud_app_subnet_prefix}
 
+
+az network vnet subnet create \
+    --name datasubnet \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix ${azurespringcloud_data_subnet_prefix}
+
+az network vnet subnet create \
+    --name datasubnet \
+    --resource-group ${azurespringcloud_vnet_resource_group_name} \
+    --vnet-name ${azurespringcloud_vnet_name} \
+    --address-prefix ${azurespringcloud_support_subnet_prefix}
 echo finished creating azure spring cloud subnets and vnet
 
 #Get Resource ID  for Azure Spring Cloud Vnet
