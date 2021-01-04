@@ -76,6 +76,13 @@ az network vnet subnet create \
 
 echo all subnets and vnet created
 
+echo create bastion in hub vnet
+az network public-ip create --resource-group ${hub_vnet_resource_group_name} --name azbastion-pip --sku Standard --location ${location}
+
+az network bastion create --resource-group ${hub_vnet_resource_group_name} --name azbastion --public-ip-address azbastion-pip --vnet-name ${hub_vnet_name} --location ${location}
+echo bastion creation finished
+
+
 echo create FW
 az network firewall create \
     --name ${firewall_name} \
