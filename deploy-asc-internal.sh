@@ -116,7 +116,7 @@ az network firewall network-rule create \
     --resource-group ${hub_vnet_resource_group_name} \
     --action Allow \
     --destination-addresses "*" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}
+    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix} \
     --priority 100
 echo Finished creating FW rules
 
