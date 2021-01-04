@@ -28,10 +28,6 @@ azurespringcloud_service='azspringcloud-'$randomstring #Name of unique Spring Cl
 azurespringcloud_service_runtime_resource_group_name=$azurespringcloud_service'-service-runtime-rg' #Name of Azure Spring Cloud service runtime resource group	
 azurespringcloud_app_resource_group_name=$azurespringcloud_service'-apps-rg' #Name of Azure Spring Cloud apps resource group
 
-echo "Enter full UPN of Key Vault Admin: "
-read userupn
-admin_object_id=$(az ad user show --id $userupn --query objectId --output tsv)
-
 echo "create hub vnet rg"
 
 az group create --location ${location} --name ${hub_vnet_resource_group_name}
@@ -76,14 +72,8 @@ az network vnet subnet create \
 
 echo all subnets and vnet created
 
-echo create bastion in hub vnet
-az network public-ip create --resource-group ${hub_vnet_resource_group_name} --name azbastion-pip --sku Standard --location ${location}
-
-az network bastion create --resource-group ${hub_vnet_resource_group_name} --name azbastion --public-ip-address azbastion-pip --vnet-name ${hub_vnet_name} --location ${location}
-echo bastion creation finished
-
-
 echo create FW
+
 az network firewall create \
     --name ${firewall_name} \
     --resource-group ${hub_vnet_resource_group_name} \
@@ -105,75 +95,6 @@ az network firewall update \
     --name ${firewall_name}  \
     --resource-group ${hub_vnet_resource_group_name}
 firewall_private_ip="$(az network firewall ip-config list -g ${hub_vnet_resource_group_name} -f ${firewall_name} --query "[?name=='FW-config'].privateIpAddress" --output tsv)"
-
-echo create FW network rules
-az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 123 \
-    --firewall-name ${firewall_name} \
-    --name NtpQuery \
-    --protocols UDP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --action Allow \
-    --destination-addresses "*" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix} \
-    --priority 100
-
-az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 443 \
-    --description Allows access to Spring Cloud Management plane \
-    --firewall-name ${firewall_name} \
-    --name SpringMgmt \
-    --protocols TCP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --destination-addresses "AzureCloud" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}    
-
-az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 9000 \
-    --description Allows underlining Kubernetes cluster management for TCP traffic \
-    --firewall-name ${firewall_name} \
-    --name K8sMgmtTcp \
-    --protocols TCP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --destination-addresses "AzureCloud" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}
-
- az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 1194 \
-    --description Allows underlining Kubernetes cluster management for TCP traffic \
-    --firewall-name ${firewall_name} \
-    --name K8sMgmtUdp \
-    --protocols UDP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --destination-addresses "AzureCloud" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}
-
- az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 443 \
-    --description Allows access to Azure Container Registery \
-    --firewall-name ${firewall_name} \
-    --name AzureContainerRegistry \
-    --protocols TCP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --destination-addresses "AzureContainerRegistry" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}
-
- az network firewall network-rule create \
-    --collection-name SpringCloudAccess \
-    --destination-ports 445 \
-    --description Allows access to Azure Storage \
-    --firewall-name ${firewall_name} \
-    --name AzureStorage \
-    --protocols TCP \
-    --resource-group ${hub_vnet_resource_group_name} \
-    --destination-addresses "Storage" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}         
-echo Finished creating FW rules
 
 echo create Azure spring cloud vnet rg
 
@@ -250,12 +171,6 @@ echo finished peering of hub to ASC spoke
 echo create Azure Spring Cloud Resource group
 
 az group create --location ${location} --name ${azurespringcloud_resource_group_name}
-
-echo creating spring cloud AKV
-az keyvault create --name ${azure_key_vault_name} --resource-group ${azurespringcloud_resource_group_name} --location ${location} --no-self-perms
-echo finished creating azure spring cloud akv
-
-az keyvault set-policy --name ${azure_key_vault_name} --object-id $admin_object_id  --key-permissions backup create decrypt delete encrypt get import list purge recover restore sign unwrapKey update verify wrapKey --secret-permissions backup delete get list purge recover restore set --certificate-permissions backup create delete deleteissuers get getissuers import list listissuers managecontacts manageissuers purge recover restore setissuers update
 
 
 echo Getting app subnet id
