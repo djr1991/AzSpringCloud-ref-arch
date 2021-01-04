@@ -205,13 +205,13 @@ az network vnet subnet create \
 
 
 az network vnet subnet create \
-    --name datasubnet \
+    --name data-subnet \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
     --vnet-name ${azurespringcloud_vnet_name} \
     --address-prefix ${azurespringcloud_data_subnet_prefix}
 
 az network vnet subnet create \
-    --name datasubnet \
+    --name support-subnet \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
     --vnet-name ${azurespringcloud_vnet_name} \
     --address-prefix ${azurespringcloud_support_subnet_prefix}
