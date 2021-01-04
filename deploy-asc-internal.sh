@@ -124,7 +124,7 @@ az network firewall network-rule create \
 az network firewall network-rule create \
     --collection-name SpringCloudAccess \
     --destination-ports 443 \
-    --description Allows access to Spring Cloud Management plane \
+    --description "Allows access to Spring Cloud Management plane" \
     --firewall-name ${firewall_name} \
     --name SpringMgmt \
     --protocols TCP \
@@ -135,7 +135,7 @@ az network firewall network-rule create \
 az network firewall network-rule create \
     --collection-name SpringCloudAccess \
     --destination-ports 9000 \
-    --description Allows underlining Kubernetes cluster management for TCP traffic \
+    --description "Allows underlining Kubernetes cluster management for TCP traffic" \
     --firewall-name ${firewall_name} \
     --name K8sMgmtTcp \
     --protocols TCP \
@@ -146,7 +146,7 @@ az network firewall network-rule create \
  az network firewall network-rule create \
     --collection-name SpringCloudAccess \
     --destination-ports 1194 \
-    --description Allows underlining Kubernetes cluster management for TCP traffic \
+    --description "Allows underlining Kubernetes cluster management for TCP traffic" \
     --firewall-name ${firewall_name} \
     --name K8sMgmtUdp \
     --protocols UDP \
@@ -157,7 +157,7 @@ az network firewall network-rule create \
  az network firewall network-rule create \
     --collection-name SpringCloudAccess \
     --destination-ports 443 \
-    --description Allows access to Azure Container Registery \
+    --description "Allows access to Azure Container Registry" \
     --firewall-name ${firewall_name} \
     --name AzureContainerRegistry \
     --protocols TCP \
@@ -168,7 +168,7 @@ az network firewall network-rule create \
  az network firewall network-rule create \
     --collection-name SpringCloudAccess \
     --destination-ports 445 \
-    --description Allows access to Azure Storage \
+    --description "Allows access to Azure Storage" \
     --firewall-name ${firewall_name} \
     --name AzureStorage \
     --protocols TCP \
