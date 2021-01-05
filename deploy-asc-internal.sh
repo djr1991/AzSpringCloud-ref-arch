@@ -16,6 +16,7 @@ application_gateway_subnet_prefix='10.9.3.0/24'
 firewall_name='azfirewall' #Name of Azure firewall resource
 firewall_public_ip_name='azfirewall-pip2' #Azure firewall public ip resource name
 azure_key_vault_name='akv-'$randomstring #Azure Key vault unique name
+azure_mysql_name='mysql-'$randomstring #Azure MySql unique name 
 azurespringcloud_vnet_resource_group_name='azurespringcloud-spoke-vnet-rg' #parameter for Azure Spring Cloud Virtual network resource group name
 azurespringcloud_vnet_name='azurespringcloud-spoke-vnet' #parameter for Azure Spring Cloud Vnet name
 azurespringcloud_vnet_address_prefixes='10.8.0.0/16' #address prefix of Azure Spring Cloud Virtual Network
@@ -33,6 +34,10 @@ azurespringcloud_app_resource_group_name=$azurespringcloud_service'-apps-rg' #Na
 echo "Enter full UPN of Key Vault Admin: "
 read userupn
 admin_object_id=$(az ad user show --id $userupn --query objectId --output tsv)
+
+echo "Enter MySql Db admin password: "
+read password
+mysqldb_password=$password
 
 echo "create hub vnet rg"
 
@@ -267,9 +272,23 @@ az group create --location ${location} --name ${azurespringcloud_resource_group_
 
 echo creating spring cloud AKV
 az keyvault create --name ${azure_key_vault_name} --resource-group ${azurespringcloud_resource_group_name} --location ${location} --no-self-perms
-echo finished creating azure spring cloud akv
+
 
 az keyvault set-policy --name ${azure_key_vault_name} --object-id $admin_object_id  --key-permissions backup create decrypt delete encrypt get import list purge recover restore sign unwrapKey update verify wrapKey --secret-permissions backup delete get list purge recover restore set --certificate-permissions backup create delete deleteissuers get getissuers import list listissuers managecontacts manageissuers purge recover restore setissuers update
+echo finished creating azure spring cloud akv
+
+echo Creating mySQL Db
+az mysql server create \
+--name ${azure_mysql_name} \
+--resource-group ${azurespringcloud_resource_group_name} \
+--location ${location} \
+--admin-user mysqladmin \
+--admin-password $mysqldb_password \
+--sku-name GP_Gen5_2
+--ssl-enforcement Disabled \
+--backup-retention 7 \
+--geo-redundant-backup Disabled \
+--storage-size 51200 
 
 
 echo Getting app subnet id
