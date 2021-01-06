@@ -271,24 +271,31 @@ echo create Azure Spring Cloud Resource group
 az group create --location ${location} --name ${azurespringcloud_resource_group_name}
 
 echo creating spring cloud AKV
-az keyvault create --name ${azure_key_vault_name} --resource-group ${azurespringcloud_resource_group_name} --location ${location} --no-self-perms
+az keyvault create --name ${azure_key_vault_name} \
+	--resource-group ${azurespringcloud_resource_group_name} \
+	--location ${location} \
+	--no-self-perms
 
 
-az keyvault set-policy --name ${azure_key_vault_name} --object-id $admin_object_id  --key-permissions backup create decrypt delete encrypt get import list purge recover restore sign unwrapKey update verify wrapKey --secret-permissions backup delete get list purge recover restore set --certificate-permissions backup create delete deleteissuers get getissuers import list listissuers managecontacts manageissuers purge recover restore setissuers update
+az keyvault set-policy --name ${azure_key_vault_name} \
+	--object-id $admin_object_id  \
+	--key-permissions backup create decrypt delete encrypt get import list purge recover restore sign unwrapKey update verify wrapKey \
+	--secret-permissions backup delete get list purge recover restore set \
+	--certificate-permissions backup create delete deleteissuers get getissuers import list listissuers managecontacts manageissuers purge recover restore setissuers update
 echo finished creating azure spring cloud akv
 
 echo Creating mySQL Db
 az mysql server create \
---name ${azure_mysql_name} \
---resource-group ${azurespringcloud_resource_group_name} \
---location ${location} \
---admin-user mysqladmin \
---admin-password $mysqldb_password \
---sku-name GP_Gen5_2
---ssl-enforcement Disabled \
---backup-retention 7 \
---geo-redundant-backup Disabled \
---storage-size 51200 
+	--name ${azure_mysql_name} \
+	--resource-group ${azurespringcloud_resource_group_name} \
+	--location ${location} \
+	--admin-user mysqladmin \
+	--admin-password $mysqldb_password \
+	--sku-name GP_Gen5_2
+	--ssl-enforcement Disabled \
+	--backup-retention 7 \
+	--geo-redundant-backup Disabled \
+	--storage-size 51200 
 
 
 echo Getting app subnet id
