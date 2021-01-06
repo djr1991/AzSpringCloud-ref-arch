@@ -179,7 +179,18 @@ az network firewall network-rule create \
     --protocols TCP \
     --resource-group ${hub_vnet_resource_group_name} \
     --destination-addresses "Storage" \
-    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}         
+    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix}
+
+az network firewall application-rule create \
+    --collection-name AllowSpringCloudWebAccess \
+    --firewall-name ${firewall_name} \
+    --name AllowAks \
+    --description "Allow Access for Azure Kubernetes Service" \
+    --protocols https \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix} \
+    --target-fqdns "AzureKubernetesService"
+
 echo Finished creating FW rules
 
 echo create Azure spring cloud vnet rg
@@ -406,7 +417,7 @@ echo getting ilb private ip
 
 #Get Azure Spring Cloud service runtime subnet internal load balancer private IP address
 azurespringcloud_internal_lb_private_ip=$(az network lb show --name kubernetes-internal \
-    --resource-group ${azurespringcloud_service_runtime_resource_group_name_resourcegroup_name} \
+    --resource-group ${azurespringcloud_service_runtime_resource_group_name} \
     --query frontendIpConfigurations[*].privateIpAddress --out tsv )
 #Add A record in Private DNS Zone for internal Azure Spring Cloud load balancer
 
