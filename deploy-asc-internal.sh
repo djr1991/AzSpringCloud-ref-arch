@@ -189,7 +189,19 @@ az network firewall application-rule create \
     --protocols https \
     --resource-group ${hub_vnet_resource_group_name} \
     --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix} \
-    --target-fqdns "AzureKubernetesService"
+    --target-fqdns "AzureKubernetesService" \
+    --priority 100
+ 
+az network firewall application-rule create \
+    --collection-name AllowSpringCloudWebAccess \
+    --firewall-name ${firewall_name} \
+    --name AllowAks \
+    --description "Allow Access for Kubernetes Cluster Management " \
+    --protocols https \
+    --resource-group ${hub_vnet_resource_group_name} \
+    --source-addresses ${azurespringcloud_app_subnet_prefix} ${azurespringcloud_service_runtime_subnet_prefix} \
+    --target-fqdns "AzureKubernetesService" \
+    --priority 100
 
 echo Finished creating FW rules
 
@@ -203,7 +215,8 @@ az network vnet create \
     --name ${azurespringcloud_vnet_name} \
     --resource-group ${azurespringcloud_vnet_resource_group_name} \
     --location ${location} \
-    --address-prefixes ${azurespringcloud_vnet_address_prefixes}
+    --address-prefixes ${azurespringcloud_vnet_address_prefixes} \
+    --dns-servers ${firewall_private_ip}
 
 #Create Azure Spring Cloud apps subnet
 az network vnet subnet create  \
@@ -285,7 +298,10 @@ echo creating spring cloud AKV
 az keyvault create --name ${azure_key_vault_name} \
 	--resource-group ${azurespringcloud_resource_group_name} \
 	--location ${location} \
-	--no-self-perms
+	--no-self-perms \
+    --default-access Deny \
+    --enabled-for-deployment true \
+    --bypass AzureServices
 
 
 az keyvault set-policy --name ${azure_key_vault_name} \
