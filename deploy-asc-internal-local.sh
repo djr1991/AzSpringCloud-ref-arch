@@ -4,7 +4,7 @@
 randomstring=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 7 | head -n 1)
 location='eastus' #location of Azure Spring Cloud Virtual Network
 hub_vnet_name='hub-vnet' #Hub Virtual Network Name
-hub_resource_group_name='hub-rg' #Hub Virtual Network Resource Group 
+hub_resource_group_name='hub-rg2' #Hub Virtual Network Resource Group 
 log_analytics_workspace_name='law-'$randomstring #Name of Log Analytics Workspace used in script
 hub_vnet_address_prefixes='10.9.0.0/16' #Hub Virtual Network Address Prefixes
 firewal_subnet_prefix='10.9.0.0/24' #Address prefix of FW subnet 
@@ -33,7 +33,7 @@ azure_spring_cloud_data_subnet_name='data-subnet' #azure Spring Cloud data subne
 azure_spring_cloud_data_subnet_nsg='data-nsg' #Azure spring Cloud support subnet nsg
 azurespringcloud_data_subnet_prefix='10.8.2.0/24' #Azure Spring Cloud data subnet prefix
 azurespringcloud_support_subnet_prefix='10.8.3.0/24' #Azure Spring Cloud support subnet prefix
-azurespringcloud_resource_group_name='azspringcloud-rg' #Hub Virtual Network Resource Group name
+azurespringcloud_resource_group_name='azspringcloud-rg2' #Hub Virtual Network Resource Group name
 azurespringcloud_service='azspringcloud-'$randomstring #Name of unique Spring Cloud resource
 azurespringcloud_service_runtime_resource_group_name=$azurespringcloud_service'-service-runtime-rg' #Name of Azure Spring Cloud service runtime resource group	
 azurespringcloud_app_resource_group_name=$azurespringcloud_service'-apps-rg' #Name of Azure Spring Cloud apps resource group
